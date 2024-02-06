@@ -1,0 +1,209 @@
+<div class="quick-order-list__container" id="main-variant-items">
+
+{%- form 'product', product, id: 'bulkOrderForm', class: 'product-single__form' -%}
+  <table>
+    <thead>
+      <tr>
+        <th>Variant</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for variant in product.variants %}
+          {% if variant.available %}
+        <tr class="variant-row">
+          <td>
+         <div class="variant-item__media">
+                          <div class="variant-item__image-container gradient global-media-settings{% unless variant.image %} variant-item__image-container--no-img {% endunless %}">
+                            {% if variant.image %}
+                              {%- assign img_height = 83 | divided_by: variant.image.aspect_ratio | ceil -%}
+                              {{
+                                variant.image
+                                | image_url: width: 86
+                                | image_tag:
+                                  loading: 'lazy',
+                                  fetchpriority: 'low',
+                                  decoding: 'async',
+                                  class: 'variant-item__image',
+                                  width: 83,
+                                  height: img_height,
+                                  widths: '86',
+                                  alt: variant.image.alt
+                                | escape
+                              }}
+                            {% endif %}
+                          </div>
+                   <div class="variant-item__info">
+                        <span class="variant-item__name h6 break">{{ variant.title | escape }}</span>
+                        
+                      </div>
+<span class="variant-item__sku break" style="font-size: 14px;
+  ">SKU-   {{ variant.sku }}</span>
+         </div>
+          </td>
+          <td>{{ variant.price | money_with_currency }}/ea 
+           <br>
+                  {% if product.metafields.custom.baseprice %}
+  {% assign price_info = product.metafields.custom.baseprice | remove: '"' | replace: '{', '' | replace: '}', '' | split: ',' %}
+  {% assign amount = price_info[0] | split: ':' | last %}
+  <span style="font-size: 14px;">MSRP-  <span style="text-decoration: line-through;">${{ amount }} </span></span>
+{% endif %}	
+                 
+          </td>
+          <td>
+        
+            <input type="number" class="quantity" name="quantity[{{ variant.id }}]" value="0" min="0" data-price="{{ variant.price | money_with_currency }}" style="width: 50%;">
+        
+          </td>
+          <td class="subtotal">$0.00</td>
+        </tr>
+             {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div>
+    <div class="quick-order-list__total gradient" id="quick-order-list-total">
+       <div class="quick-order-list-total__info" style="text-align: center;">
+          <div class="quick-order-list-total__column small-hide medium-hide">
+    <br>
+<br>
+            <div class="totals__product-total">
+    <label for="totalPrice" class="totals__subtotal h6">Total Price: <span class="totalPrice">0.00</span></label>
+                </div>
+              <small class="tax-note caption-large rte" style>
+              {%- if cart.taxes_included and shop.shipping_policy.body != blank -%}
+                Tax included. <a href="{{ shop.shipping_policy.url }}">Shipping</a> calculated at checkout.
+              {%- elsif cart.taxes_included -%}
+                Tax included and shipping  calculated at checkout
+              {%- elsif shop.shipping_policy.body != blank -%}
+                Taxes and <a href="{{ shop.shipping_policy.url }}">shipping</a> calculated at checkout
+              {%- else -%}
+                Taxes and shipping calculated at checkout
+              {%- endif -%}
+            </small>
+  </div>
+ <div class="quick-order-list-total__column large-up-hide">
+            <div class="quick-order-list-buttons">
+  <button
+    type="button"
+    name="add"
+      data-add-to-cart
+    class="btn  add-to-carta " style="    background-color: #202020;
+    color: white;
+    border: 1px solid #202020;">
+    Add to Cart 
+     <span class="right-arrow">
+       {%- render 'enavi-icons' name:'right-arrow', width:'15px', height:'12px' -%}
+      </span>
+  </button>
+    </div>
+ </div>
+   </div>
+    </div>
+  </div>
+{%- endform -%}
+ 
+<br>
+<br>
+<br>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var quantityInputs = document.querySelectorAll('.quantity');
+    quantityInputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            updateTotals();
+        });
+    });
+
+    var addToCartButton = document.querySelector('.add-to-carta');
+    if (addToCartButton) {
+        addToCartButton.addEventListener('click', function (event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            // Simulate the process of adding items to the cart
+            var cartItems = [];
+            quantityInputs.forEach(function (input) {
+                var quantity = parseInt(input.value);
+                if (quantity > 0) {
+                    var variantId = input.name.match(/\d+/)[0];
+                    cartItems.push({ id: variantId, quantity: quantity });
+                }
+            });
+
+            // Perform AJAX request to add items to the cart
+            addToCartWithAjax(cartItems);
+        });
+    }
+});
+
+
+  function updateTotals() {
+    var totalPrice = 0;
+
+    var variantRows = document.querySelectorAll('.variant-row');
+    variantRows.forEach(function (row) {
+        var quantityInput = row.querySelector('.quantity');
+        var quantity = parseInt(quantityInput.value) || 0;
+        var price = parseFloat(quantityInput.getAttribute('data-price').replace(/[^0-9\.]+/g, "")) || 0;
+
+        if (quantityInput.type === 'number' && quantityInput.hasAttribute('data-price')) {
+            // Check if the variant is available (not out of stock)
+            var isOutOfStock = quantityInput.value === 'Out of Stock';
+            
+            if (!isOutOfStock) {
+                var subtotal = quantity * price;
+                row.querySelector('.subtotal').textContent = '$' + subtotal.toFixed(2);
+                totalPrice += subtotal;
+            } else {
+                row.querySelector('.subtotal').textContent = '$0.00';
+            }
+        }
+    });
+
+    document.querySelector('.totalPrice').textContent = '$' + totalPrice.toFixed(2);
+}
+
+
+function addToCartWithAjax(cartItems) {
+    // Perform AJAX request to add items to the cart
+    jQuery.post('/cart/add.js', { items: cartItems }, function (data) {
+        console.log('Items added to the cart:', data);
+        // Redirect to the cart page
+        window.location.href = '/cart';
+    })
+    .fail(function (error) {
+        console.error('Failed to add items to the cart:', error);
+        // Handle the failure scenario
+    });
+}
+</script>
+
+{% stylesheet %}
+  
+ 
+  @media only screen and (max-width: 767px) 
+{
+.quick-order-list__container
+{
+padding: 0px;
+}
+  .variant-item__name
+{
+font-size: 12px;
+  line-height: 12px;
+}
+}
+
+
+@media only screen and (min-width: 768px)
+{
+.quick-order-list__container
+{
+padding: 40px;
+}
+}
+{% endstylesheet %}
